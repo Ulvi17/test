@@ -67,7 +67,8 @@ function parseGoogleSheetsData(csvText) {
                 practiceAreas: parsePracticeAreas(lawyer.spheres, lawyer.legal_work),
                 notableCase: lawyer.text || 'Experienced legal professional.',
                 image: lawyer.logourl || getDefaultLogo(lawyer.type),
-                description: lawyer.text || 'Professional legal services.'
+                description: lawyer.text || 'Professional legal services.',
+                freeConsultation: lawyer.freeconsulation && lawyer.freeconsulation.toLowerCase() === 'yes'
             };
         });
 }
@@ -254,8 +255,13 @@ function getLanguageFlag(lang) {
 // Render functions
 function renderLawyerCard(lawyer) {
     return `
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer" 
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer relative" 
              onclick="openLawyerModal(${lawyer.id})">
+            ${lawyer.freeConsultation ? `
+                <div class="absolute top-3 right-3 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold animate-pulse">
+                    Free Consultation
+                </div>
+            ` : ''}
             <div class="p-6">
                 <div class="flex items-center space-x-4 mb-4">
                     <img src="${lawyer.image}" alt="${lawyer.name}" 
@@ -265,6 +271,12 @@ function renderLawyerCard(lawyer) {
                         <h3 class="text-lg font-semibold text-gray-900">${lawyer.name}</h3>
                         <p class="text-primary text-sm font-medium">${lawyer.type}</p>
                         <p class="text-gray-600 text-sm">${getExperienceCategory(lawyer.experience)} experience</p>
+                        ${lawyer.freeConsultation ? `
+                            <div class="flex items-center mt-1">
+                                <i class="fas fa-gift text-green-500 text-xs mr-1"></i>
+                                <span class="text-green-600 text-xs font-medium">Free Consultation Available</span>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
                 
@@ -350,8 +362,12 @@ function applyFilters() {
         const matchesLanguage = selectedLanguages.length === 0 ||
             selectedLanguages.every(lang => lawyer.languages.includes(lang));
         
+        // Free consultation filter
+        const freeConsultationFilter = document.getElementById('freeConsultationFilter');
+        const matchesFreeConsultation = !freeConsultationFilter.checked || lawyer.freeConsultation;
+        
         return matchesSearch && matchesType && matchesExperience && 
-               matchesPracticeArea && matchesLanguage;
+               matchesPracticeArea && matchesLanguage && matchesFreeConsultation;
     });
     
     renderLawyers();
@@ -363,6 +379,12 @@ function clearAllFilters() {
     experienceFilter.value = '';
     practiceAreaFilter.value = '';
     selectedLanguages = [];
+    
+    // Reset free consultation filter
+    const freeConsultationFilter = document.getElementById('freeConsultationFilter');
+    if (freeConsultationFilter) {
+        freeConsultationFilter.checked = false;
+    }
     
     // Reset language filter buttons
     languageFilters.forEach(btn => {
@@ -404,9 +426,52 @@ function openLawyerModal(lawyerId) {
         </span>
     `).join('');
     
+    // Update action buttons based on lawyer type
+    const actionButtonsDiv = document.getElementById('modalActionButtons');
+    let buttonHTML = '';
+    
+    if (lawyer.type === 'Freelancer') {
+        // For freelancers: WhatsApp + LinkedIn buttons
+        const whatsappNumber = lawyer.phone.replace(/[^\d]/g, ''); // Remove non-digits
+        const linkedinUrl = lawyer.url;
+        
+        buttonHTML = `
+            <div class="grid grid-cols-1 gap-3">
+                <button onclick="openWhatsApp('${whatsappNumber}', '${lawyer.name}')" 
+                        class="w-full bg-green-500 text-white py-3 px-6 rounded-lg font-semibold hover:bg-green-600 transition-colors flex items-center justify-center">
+                    <i class="fab fa-whatsapp mr-2 text-lg"></i>Chat on WhatsApp
+                </button>
+                ${linkedinUrl ? `
+                    <button onclick="window.open('${linkedinUrl}', '_blank')" 
+                            class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center">
+                        <i class="fab fa-linkedin mr-2"></i>View LinkedIn Profile
+                    </button>
+                ` : ''}
+            </div>
+        `;
+    } else {
+        // For law firms: Visit website button
+        const websiteUrl = lawyer.url;
+        buttonHTML = `
+            <button onclick="window.open('${websiteUrl}', '_blank')" 
+                    class="w-full bg-primary text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center">
+                <i class="fas fa-external-link-alt mr-2"></i>Visit Website
+            </button>
+        `;
+    }
+    
+    actionButtonsDiv.innerHTML = buttonHTML;
+    
     // Show modal
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+}
+
+// WhatsApp function
+function openWhatsApp(phoneNumber, lawyerName) {
+    const message = encodeURIComponent(`Hello ${lawyerName}, I found your profile on TopLawyers and I'm interested in your legal services. Could we discuss my case?`);
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
+    window.open(whatsappUrl, '_blank');
 }
 
 function closeLawyerModal() {
@@ -460,6 +525,12 @@ function initializeEventListeners() {
     practiceAreaFilter.addEventListener('change', applyFilters);
     clearFiltersBtn.addEventListener('click', clearAllFilters);
     
+    // Free consultation filter
+    const freeConsultationFilter = document.getElementById('freeConsultationFilter');
+    if (freeConsultationFilter) {
+        freeConsultationFilter.addEventListener('change', applyFilters);
+    }
+    
     // Language filter events
     languageFilters.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -507,4 +578,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Make functions available globally
 window.openLawyerModal = openLawyerModal;
-window.fetchLawyersData = fetchLawyersData; 
+window.fetchLawyersData = fetchLawyersData;
+window.openWhatsApp = openWhatsApp; 
