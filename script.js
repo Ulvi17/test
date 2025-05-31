@@ -65,7 +65,7 @@ function parseGoogleSheetsData(csvText) {
                 url: lawyer.url || '',
                 languages: parseLanguages(lawyer.languages),
                 practiceAreas: parsePracticeAreas(lawyer.spheres, lawyer.legal_work),
-                notableCase: lawyer.text || 'Experienced legal professional.',
+                notableCase: lawyer.punchline || lawyer.text || 'Experienced legal professional.',
                 image: lawyer.logourl || getDefaultLogo(lawyer.type),
                 description: lawyer.text || 'Professional legal services.',
                 freeConsultation: lawyer.freeconsulation && lawyer.freeconsulation.toLowerCase() === 'yes'
